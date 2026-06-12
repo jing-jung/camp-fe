@@ -94,7 +94,7 @@ export async function getRecommendationCandidates(
 export async function getRecommendationCandidate(
   ticker: string,
 ): Promise<RecommendationCandidate> {
-  return request<RecommendationCandidate>(`/recommendations/candidates/${ticker}`);
+  return request<RecommendationCandidate>(`/recommendations/candidates/${encodeURIComponent(ticker)}`);
 }
 
 export async function searchStocks(query = "", limit = 20): Promise<StockSearchResponse> {
@@ -116,7 +116,7 @@ export async function searchStocks(query = "", limit = 20): Promise<StockSearchR
 }
 
 export async function getStock(ticker: string): Promise<StockDetail> {
-  const response = await request<StockDetailContractResponse>(`/stocks/${ticker}`);
+  const response = await request<StockDetailContractResponse>(`/stocks/${encodeURIComponent(ticker)}`);
   return {
     ticker: response.data.stock.ticker,
     name: response.data.stock.name,
@@ -146,7 +146,7 @@ export async function getStockEvidence(
   const params = new URLSearchParams();
   if (types?.length) params.set("source_type", toContractEvidenceFilter(types));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const response = await request<StockEvidenceContractResponse>(`/stocks/${ticker}/evidence${suffix}`);
+  const response = await request<StockEvidenceContractResponse>(`/stocks/${encodeURIComponent(ticker)}/evidence${suffix}`);
   return {
     ticker: response.data.ticker,
     evidence: response.data.items.map((item) => ({
@@ -251,7 +251,7 @@ export async function deleteServerWatchlistItem(
   accessToken: string,
   ticker: string,
 ): Promise<void> {
-  await authorizedRequest(`/me/watchlist/${ticker}`, accessToken, {
+  await authorizedRequest(`/me/watchlist/${encodeURIComponent(ticker)}`, accessToken, {
     method: "DELETE",
   });
 }
@@ -261,7 +261,7 @@ export async function patchServerWatchlistItem(
   ticker: string,
   body: { memo?: string | null },
 ): Promise<void> {
-  await authorizedRequest(`/me/watchlist/${ticker}`, accessToken, {
+  await authorizedRequest(`/me/watchlist/${encodeURIComponent(ticker)}`, accessToken, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
