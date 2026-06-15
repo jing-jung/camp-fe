@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-import { addServerWatchlistItem, deleteServerWatchlistItem, getServerWatchlist } from "@/lib/api";
+import { addServerWatchlistItem, deleteServerWatchlistItem } from "@/lib/api";
 import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
+import { serverWatchlistStore } from "@/lib/server-watchlist-store";
 import {
   isTickerSaved,
   removeWatchlistItem,
   saveWatchlistItem,
   subscribeWatchlist,
 } from "@/lib/watchlist-storage";
-import { notifyServerWatchlistChanged } from "@/lib/watchlist-sync";
 import type { WatchlistInput } from "@/types/watchlist";
 
 export function WatchlistToggle({
@@ -44,24 +44,20 @@ export function WatchlistToggle({
 
   useEffect(() => {
     if (!accessToken) return;
-    const token = accessToken;
-    let cancelled = false;
-    async function loadServerState() {
-      setReady(false);
-      try {
-        const response = await getServerWatchlist(token);
-        if (!cancelled) setSaved(response.items.some((serverItem) => serverItem.ticker === item.ticker));
-      } catch {
-        if (!cancelled) setSaved(false);
-      } finally {
-        if (!cancelled) setReady(true);
-      }
-    }
 
-    void loadServerState();
-    return () => {
-      cancelled = true;
+    const checkSaved = () => {
+      const snapshot = serverWatchlistStore.getSnapshot(accessToken);
+      if (snapshot.data) {
+        setSaved(snapshot.data.items.some((serverItem) => serverItem.ticker === item.ticker));
+        setReady(true);
+      } else if (snapshot.error) {
+        setSaved(false);
+        setReady(true);
+      }
     };
+
+    checkSaved();
+    return serverWatchlistStore.subscribe(accessToken, checkSaved);
   }, [accessToken, item.ticker]);
 
   async function toggle() {
@@ -70,12 +66,10 @@ export function WatchlistToggle({
       try {
         if (saved) {
           await deleteServerWatchlistItem(accessToken, item.ticker);
-          setSaved(false);
         } else {
           await addServerWatchlistItem(accessToken, item);
-          setSaved(true);
         }
-        notifyServerWatchlistChanged();
+        await serverWatchlistStore.refresh(accessToken);
       } finally {
         setReady(true);
       }

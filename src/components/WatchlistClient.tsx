@@ -3,30 +3,25 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { deleteServerWatchlistItem, getMe, getServerWatchlist, patchServerWatchlistItem } from "@/lib/api";
+import { deleteServerWatchlistItem, patchServerWatchlistItem } from "@/lib/api";
 import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
+import { serverWatchlistStore } from "@/lib/server-watchlist-store";
 import {
   readWatchlist,
   removeWatchlistItem,
   subscribeWatchlist,
   updateWatchlistMemo,
 } from "@/lib/watchlist-storage";
-import {
-  importLocalWatchlistOnce,
-  notifyServerWatchlistChanged,
-  subscribeServerWatchlistChanged,
-} from "@/lib/watchlist-sync";
 import { formatDate } from "@/lib/format";
 import type { ServerWatchlistItem } from "@/types/api";
 import type { WatchlistItem } from "@/types/watchlist";
 
 export function WatchlistClient() {
   const [items, setItems] = useState<WatchlistItem[]>([]);
-  const [serverItems, setServerItems] = useState<ServerWatchlistItem[]>([]);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [serverSnapshot, setServerSnapshot] = useState<{ items: ServerWatchlistItem[] }>({ items: [] });
 
   useEffect(() => {
     const sync = () => {
@@ -45,87 +40,52 @@ export function WatchlistClient() {
   }, []);
 
   useEffect(() => {
-    if (!accessToken || !ready) {
-      return;
-    }
+    if (!accessToken || !ready) return;
 
-    const token = accessToken;
-    let cancelled = false;
-    async function syncServerWatchlist() {
-      setError(null);
-      try {
-        const me = await getMe(token);
-        const imported = await importLocalWatchlistOnce(token, me);
-        if (cancelled) return;
-        setServerItems(imported.items);
-        if (imported.importedCount > 0) {
-          setSyncMessage(`로컬 관심종목 ${imported.importedCount}개를 서버에 병합했습니다.`);
-        } else {
-          setSyncMessage("서버 관심종목과 동기화되었습니다.");
-        }
-      } catch {
-        if (!cancelled) {
-          setError("서버 관심종목을 불러오지 못했습니다. 게스트 목록은 이 브라우저에 유지됩니다.");
-        }
+    const syncStore = () => {
+      const snapshot = serverWatchlistStore.getSnapshot(accessToken);
+      if (snapshot.data) {
+        setServerSnapshot({ items: snapshot.data.items });
+        setError(null);
+      } else if (snapshot.error) {
+        setError(snapshot.error);
       }
-    }
-
-    void syncServerWatchlist();
-    return () => {
-      cancelled = true;
     };
+
+    syncStore();
+    return serverWatchlistStore.subscribe(accessToken, syncStore);
   }, [accessToken, ready]);
-
-  useEffect(() => {
-    if (!accessToken) return () => undefined;
-    const refresh = async () => {
-      try {
-        const next = await getServerWatchlist(accessToken);
-        setServerItems(next.items);
-      } catch {
-        setError("서버 관심종목을 새로고침하지 못했습니다.");
-      }
-    };
-    return subscribeServerWatchlistChanged(() => void refresh());
-  }, [accessToken]);
 
   async function removeTicker(ticker: string) {
     if (accessToken) {
       try {
         await deleteServerWatchlistItem(accessToken, ticker);
-        const next = await getServerWatchlist(accessToken);
-        setServerItems(next.items);
-        notifyServerWatchlistChanged();
+        await serverWatchlistStore.refresh(accessToken);
       } catch {
         setError("서버 관심종목 삭제에 실패했습니다.");
       }
       return;
     }
-
     setItems(removeWatchlistItem(ticker));
   }
 
   function updateMemo(ticker: string, memo: string) {
-    if (accessToken) {
-      setServerItems((current) =>
-        current.map((item) => (item.ticker === ticker ? { ...item, memo } : item)),
-      );
-      return;
+    if (!accessToken) {
+      setItems(updateWatchlistMemo(ticker, memo));
     }
-    setItems(updateWatchlistMemo(ticker, memo));
   }
 
   async function saveServerMemo(ticker: string, memo: string) {
     if (!accessToken) return;
     try {
       await patchServerWatchlistItem(accessToken, ticker, { memo: memo.trim() || null });
-      notifyServerWatchlistChanged();
+      await serverWatchlistStore.refresh(accessToken);
     } catch {
       setError("서버 관심종목 메모 저장에 실패했습니다.");
     }
   }
 
-  const visibleItems = accessToken ? serverItems.map(serverToLocalItem) : items;
+  const visibleItems = accessToken ? serverSnapshot.items.map(serverToLocalItem) : items;
   const usingServer = Boolean(accessToken);
 
   return (
@@ -136,7 +96,6 @@ export function WatchlistClient() {
         ) : (
           <span>게스트 상태입니다. 관심종목은 이 브라우저의 localStorage에 저장됩니다.</span>
         )}
-        {syncMessage ? <p className="mt-2 font-medium text-accent">{syncMessage}</p> : null}
         {error ? <p className="mt-2 font-medium text-caution">{error}</p> : null}
       </div>
       <div className="border-y border-line bg-white">
@@ -146,13 +105,13 @@ export function WatchlistClient() {
           <div className="px-4 py-10">
             <h2 className="text-lg font-semibold text-ink">저장된 관심종목이 없습니다.</h2>
             <p className="mt-2 text-sm leading-6 text-muted">
-              추천 후보 카드나 종목 상세에서 관심종목 저장을 누르면 이곳에 표시됩니다.
+              검토 후보 카드나 종목 상세에서 관심종목 저장을 누르면 이곳에 표시됩니다.
             </p>
             <Link
               href="/recommendations"
               className="mt-5 inline-flex rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent focus:outline-none focus:shadow-focus"
             >
-              추천 후보 보기
+              검토 후보 보기
             </Link>
           </div>
         ) : (
@@ -192,7 +151,7 @@ export function WatchlistClient() {
                 <label className="mt-4 block">
                   <span className="text-xs font-medium text-muted">memo</span>
                   <textarea
-                    value={item.memo ?? ""}
+                    defaultValue={item.memo ?? ""}
                     onChange={(event) => updateMemo(item.ticker, event.target.value)}
                     onBlur={(event) => void saveServerMemo(item.ticker, event.target.value)}
                     rows={2}
