@@ -171,6 +171,8 @@ Query parameters:
 | `sector` | string | no | Exact sector filter. |
 | `limit` | integer | no | Default `10`, max `100`. |
 
+Frontend behavior: authenticated recommendation and explore pages call `GET /v1/me/preferences` and initialize this query from `preferences.risk_profile` only when the URL does not already include `risk_profile`; explicit URL filters remain authoritative.
+
 Response `200`:
 
 ```json
