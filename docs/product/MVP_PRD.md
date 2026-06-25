@@ -110,8 +110,9 @@ Example localStorage values:
 
 1. Frontend calls `GET /api/v1/recommendations/candidates`.
 2. Next.js proxy forwards to backend `GET /v1/recommendations/candidates`.
-3. User reviews score, evidence count, freshness, and risk tags.
-4. User opens a candidate detail page.
+3. If the user is authenticated and the URL has no explicit `risk_profile`, frontend initializes the candidate filter from `GET /v1/me/preferences`.
+4. User reviews score, evidence count, freshness, and risk tags.
+5. User opens a candidate detail page.
 
 ### Flow C: Recommendation Detail
 

@@ -1,14 +1,14 @@
 import { CandidateTable } from "@/components/CandidateTable";
 import { ErrorState } from "@/components/ErrorState";
 import { getRecommendationCandidates } from "@/lib/api";
-import type { RiskProfile } from "@/types/api";
+import { riskProfileQueryValue } from "@/lib/risk-profile";
 
 type RecommendationsListProps = {
   searchParams: Record<string, string | string[] | undefined>;
 };
 
 export async function RecommendationsList({ searchParams }: RecommendationsListProps) {
-  const riskProfile = toRiskProfile(searchParams.risk_profile);
+  const riskProfile = riskProfileQueryValue(searchParams.risk_profile);
   let candidates: Awaited<ReturnType<typeof getRecommendationCandidates>>;
 
   try {
@@ -46,9 +46,4 @@ export async function RecommendationsList({ searchParams }: RecommendationsListP
       <CandidateTable items={candidates.items} />
     </div>
   );
-}
-
-function toRiskProfile(value: string | string[] | undefined): RiskProfile {
-  if (value === "conservative" || value === "aggressive") return value;
-  return "balanced";
 }
