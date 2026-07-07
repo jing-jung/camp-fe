@@ -1,19 +1,44 @@
-# StockBrief-fe
+# 🚀 Camp Project - Frontend
 
 > **대규모 트래픽 대응 프론트엔드 아키텍처**  
-> Next.js ISR + API 캐싱으로 100만 PV/월 규모를 안정적으로 처리하는 한국 국내 주식 추천 후보 서비스
+> Next.js ISR + API 캐싱으로 100만 PV/월 규모를 안정적으로 처리하는 서버리스 웹 애플리케이션
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Personal-green)](LICENSE)
 
-개인 포트폴리오 프로젝트로, 근거 기반 종목 검토 후보를 제공합니다. 투자 조언이 아닌 `검토 후보 추천` 서비스입니다.
+개인 학습 및 포트폴리오 목적의 프로젝트로, Next.js 프론트엔드를 ECS Fargate로 서버리스 배포하는 현대적인 아키텍처를 구현했습니다.
 
-## 🎯 핵심 성과
+## ✨ 주요 특징
 
-이 프로젝트의 주요 목표는 **대규모 트래픽 환경에서도 비용 효율적이고 빠른 응답을 제공하는 프론트엔드 아키텍처 구현**입니다.
+### 프론트엔드
+- ⚡ **Next.js 15** - App Router 기반 서버 컴포넌트
+- 🎨 **Tailwind CSS** - 모던 UI 스타일링
+- 🔄 **ISR (Incremental Static Regeneration)** - 5-10분 자동 재검증
+- 🚀 **CloudFront CDN** - 글로벌 콘텐츠 전송 최적화
+- 📱 **Responsive Design** - 모바일 퍼스트 디자인
 
-### 성능 개선 결과 (100k PV/월 기준)
+### 성능 최적화
+- 🔥 **3-Layer Caching** - CloudFront + ISR + API Cache
+- ⚡ **99.6% Server Render 감소** - ISR로 서버 부하 최소화
+- 🎯 **10배 빠른 응답** - TTFB 500ms → 50ms
+- 💰 **비용 효율적** - 월 비용 16-31% 절감
+
+### 인프라 & 배포
+- 🏗️ **ECS Fargate** - 컨테이너 기반 배포
+- 🌐 **CloudFront** - 지능형 CDN 캐싱
+- 🐳 **Docker** - 컨테이너화된 Next.js
+- 🔄 **GitHub Actions** - CI/CD 자동화
+
+## 🎯 프로젝트 목표
+
+1. **대규모 트래픽 처리**: ISR + 다층 캐싱으로 100만 PV/월 안정적 처리
+2. **성능 최적화**: TTFB 10배, LCP 6배 개선
+3. **비용 효율화**: 서버 렌더링 99.6% 감소로 인프라 비용 절감
+4. **현대적 아키텍처**: Server Components + Client Components 하이브리드
+5. **포트폴리오 완성도**: 실무급 성능 메트릭과 아키텍처 설계
+
+## 📊 핵심 성과
 
 | 메트릭 | Before | After | 개선 |
 |--------|--------|-------|------|
@@ -92,6 +117,39 @@ flowchart LR
 | API Cache (L3) | 90% | < 200ms |
 | Backend Origin | 5% | ~500ms |
 
+## 📁 프로젝트 구조
+
+```
+camp-fe/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── recommendations/    # 추천 목록 페이지 (ISR)
+│   │   ├── stocks/[ticker]/    # 종목 상세 페이지 (ISR)
+│   │   └── explore/            # 탐색 페이지 (ISR)
+│   ├── components/             # React 컴포넌트
+│   │   ├── CandidateCard.tsx   # 추천 카드 UI
+│   │   ├── RecommendationsList.tsx  # 목록 컴포넌트
+│   │   └── StockDetailClient.tsx    # 상세 클라이언트
+│   ├── lib/                    # 유틸리티 & API
+│   │   ├── api.ts              # API 클라이언트 (캐싱 로직)
+│   │   ├── format.ts           # 포맷팅 헬퍼
+│   │   └── watchlist-storage.ts # localStorage 관리
+│   └── types/                  # TypeScript 타입
+│       ├── api.ts              # API 응답 타입
+│       └── api-contract.ts     # 백엔드 계약
+├── docs/
+│   ├── engineering/            # 기술 문서
+│   │   ├── CACHING_STRATEGY.md
+│   │   ├── FRONTEND_CACHING_IMPLEMENTATION.md
+│   │   └── PHASE2_ISR_IMPLEMENTATION.md
+│   └── product/                # 제품 문서
+├── .github/
+│   └── workflows/              # GitHub Actions CI/CD
+├── Dockerfile                  # 프로덕션 빌드
+├── next.config.ts              # Next.js 설정
+└── tailwind.config.ts          # Tailwind 설정
+```
+
 ## 📁 레포 범위
 
 | 구분 | 내용 |
@@ -122,7 +180,7 @@ cp .env.example .env.local
 백엔드 개발 환경이 준비되면 AWS 계정의 Terraform 출력값으로 로컬 환경변수를 생성할 수 있습니다.
 
 ```bash
-pnpm run sync:dev-env -- --terraform-dir ../StockBrief-be/infra/terraform
+pnpm run sync:dev-env -- --terraform-dir ../camp-be/infra/terraform
 ```
 
 ## 개발 서버 실행
@@ -288,33 +346,25 @@ export default async function RecommendationsPage({ searchParams }) {
   - [MVP PRD](docs/product/MVP_PRD.md)
   - [API 계약](docs/engineering/API_CONTRACT.md)
 
-## 🎓 학습 포인트
+## 🤝 기여 및 문의
 
-이 프로젝트에서 다룬 주요 기술:
+이 프로젝트는 개인 학습 목적으로 개발되었습니다.
 
-1. **Next.js App Router & Server Components**
-   - Client/Server 컴포넌트 분리 전략
-   - ISR을 활용한 정적 생성 + 자동 재검증
-
-2. **다층 캐싱 아키텍처**
-   - CloudFront (CDN)
-   - Next.js ISR (페이지 캐시)
-   - fetch API (데이터 캐시)
-
-3. **대규모 트래픽 대응**
-   - 비용 효율적인 서버리스 아키텍처
-   - Stale-While-Revalidate 패턴
-   - 동시 접속 10,000명 이상 처리
-
-4. **성능 최적화**
-   - TTFB 10배 개선
-   - LCP 6배 개선
-   - Server CPU 사용률 90% 감소
+질문이나 제안사항이 있으시면 이슈를 등록해주세요!
 
 ## 📄 라이선스
 
-개인 포트폴리오 프로젝트 — 상업적 사용 시 별도 문의
+MIT License
+
+## 🙏 감사의 말
+
+이 프로젝트는 다음 오픈소스 프로젝트들을 참고했습니다:
+
+- Next.js
+- React
+- Tailwind CSS
+- Vercel
 
 ---
 
-**Built with 💙 by [jing-jung](https://github.com/jing-jung)**
+⭐ 이 프로젝트가 도움이 되었다면 Star를 눌러주세요!
