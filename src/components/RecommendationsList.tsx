@@ -1,34 +1,75 @@
-import { cookies } from "next/headers";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CandidateTable } from "@/components/CandidateTable";
 import { ErrorState } from "@/components/ErrorState";
 import { getRecommendationCandidates } from "@/lib/api";
 import { riskProfileLabel } from "@/lib/format";
 import { riskProfileQueryValue } from "@/lib/risk-profile";
+import { getRiskProfileCookie } from "@/lib/preference-cookie";
+import type { RecommendationCandidateList } from "@/types/api";
 
-type RecommendationsListProps = {
-  searchParams: Record<string, string | string[] | undefined>;
-};
+export function RecommendationsList() {
+  const searchParams = useSearchParams();
+  const [candidates, setCandidates] = useState<RecommendationCandidateList | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-export async function RecommendationsList({ searchParams }: RecommendationsListProps) {
-  let rawProfile = searchParams.risk_profile;
-  if (!rawProfile) {
-    const cookieStore = await cookies();
-    rawProfile = cookieStore.get("stockbrief_risk_profile")?.value;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(false);
+
+            try {
+        let rawProfile: string | null | undefined = searchParams.get("risk_profile");
+        if (!rawProfile) {
+          rawProfile = getRiskProfileCookie() ?? undefined;
+        }
+        const riskProfile = riskProfileQueryValue(rawProfile);
+
+        const market = searchParams.get("market");
+        const sector = searchParams.get("sector");
+
+        const data = await getRecommendationCandidates({
+          riskProfile,
+          market: market === "KOSPI" || market === "KOSDAQ" ? market : undefined,
+          sector: typeof sector === "string" ? sector : undefined,
+          limit: 20,
+        });
+
+        if (!cancelled) {
+          setCandidates(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setError(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-5 py-8">
+        <div className="text-center text-sm text-muted">로딩 중...</div>
+      </div>
+    );
   }
-  const riskProfile = riskProfileQueryValue(rawProfile);
-  let candidates: Awaited<ReturnType<typeof getRecommendationCandidates>>;
 
-  try {
-    candidates = await getRecommendationCandidates({
-      riskProfile,
-      market:
-        searchParams.market === "KOSPI" || searchParams.market === "KOSDAQ"
-          ? searchParams.market
-          : undefined,
-      sector: typeof searchParams.sector === "string" ? searchParams.sector : undefined,
-      limit: 20,
-    });
-  } catch {
+  if (error || !candidates) {
     return (
       <div className="mx-auto max-w-7xl px-5 py-8">
         <ErrorState href="/" />

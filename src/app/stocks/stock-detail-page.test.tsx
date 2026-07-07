@@ -1,9 +1,15 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getRecommendationCandidate, getStock, getStockEvidence } from "@/lib/api";
 
 import StockPage from "./[ticker]/page";
+
+let mockTicker = "005930";
+
+vi.mock("next/navigation", () => ({
+  useParams: () => ({ ticker: mockTicker }),
+}));
 
 vi.mock("@/lib/api", () => ({
   getRecommendationCandidate: vi.fn(),
@@ -24,6 +30,10 @@ const mockedGetStock = vi.mocked(getStock);
 const mockedGetStockEvidence = vi.mocked(getStockEvidence);
 
 describe("StockPage", () => {
+  beforeEach(() => {
+    mockTicker = "005930";
+  });
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -97,9 +107,11 @@ describe("StockPage", () => {
       message: null,
     });
 
-    render(await StockPage({ params: Promise.resolve({ ticker: "005930" }) }));
+        render(<StockPage />);
 
-    expect(screen.getAllByText("누락 데이터")).toHaveLength(2);
+    await waitFor(() => {
+      expect(screen.getAllByText("누락 데이터")).toHaveLength(2);
+    });
     expect(screen.getByRole("heading", { name: "점수 구성" })).not.toBeNull();
     expect(screen.getByRole("heading", { name: "리스크와 확인할 점" })).not.toBeNull();
     expect(screen.getByRole("heading", { name: "공시·뉴스·재무·가격 근거" })).not.toBeNull();

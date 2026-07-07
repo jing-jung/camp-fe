@@ -1,0 +1,26 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# build output
+.next
+out
+
+# env files
+.env
+.env.*
+
+# git / editor
+.git
+.gitignore
+.cursor
+.vscode
+
+# tests and docs
+coverage
+docs
+*.md
+!README.md
+
+# ci artifacts
+.github

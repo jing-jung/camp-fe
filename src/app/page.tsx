@@ -1,24 +1,63 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { CandidateTable } from "@/components/CandidateTable";
 import { ErrorState } from "@/components/ErrorState";
 import { getRecommendationCandidates } from "@/lib/api";
+import type { RecommendationCandidateList } from "@/types/api";
 
-export const dynamic = "force-dynamic";
+export default function HomePage() {
+  const [candidates, setCandidates] = useState<RecommendationCandidateList | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-export default async function HomePage() {
-  let data: Awaited<ReturnType<typeof loadHomeData>>;
-  try {
-    data = await loadHomeData();
-  } catch {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(false);
+
+      try {
+        const data = await getRecommendationCandidates({ limit: 3 });
+        if (!cancelled) {
+          setCandidates(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setError(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-5 py-8">
+        <div className="text-center text-sm text-muted">로딩 중...</div>
+      </div>
+    );
+  }
+
+  if (error || !candidates) {
     return (
       <div className="mx-auto max-w-7xl px-5 py-8">
         <ErrorState />
       </div>
     );
   }
-
-  const { candidates } = data;
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-8">
@@ -71,11 +110,6 @@ export default async function HomePage() {
       </section>
     </div>
   );
-}
-
-async function loadHomeData() {
-  const candidates = await getRecommendationCandidates({ limit: 3 });
-  return { candidates };
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

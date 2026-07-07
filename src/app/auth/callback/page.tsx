@@ -1,10 +1,12 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
 import { AuthCallbackClient } from "@/components/AuthCallbackClient";
 
-export default async function AuthCallbackPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ code?: string; state?: string }>;
-}) {
-  const params = await searchParams;
-  return <AuthCallbackClient code={params.code ?? null} state={params.state ?? null} />;
+export default function AuthCallbackPage() {
+  const searchParams = useSearchParams();
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+
+  return <AuthCallbackClient code={code} state={state} />;
 }

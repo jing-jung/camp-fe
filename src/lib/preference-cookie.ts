@@ -9,6 +9,13 @@ export function setRiskProfileCookie(profile: RiskProfile): void {
   document.cookie = `${COOKIE_NAME}=${profile}; path=/; max-age=${maxAge}; samesite=lax${secureFlag}`;
 }
 
+export function getRiskProfileCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const cookies = document.cookie.split("; ");
+  const found = cookies.find((row) => row.startsWith(`${COOKIE_NAME}=`));
+  return found ? found.split("=")[1] : null;
+}
+
 export function clearRiskProfileCookie(): void {
   if (typeof document === "undefined") return;
   const secureFlag = window.location.protocol === "https:" ? "; secure" : "";

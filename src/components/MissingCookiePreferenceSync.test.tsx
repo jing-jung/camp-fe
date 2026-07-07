@@ -35,17 +35,22 @@ vi.mock("@/lib/cognito-auth", () => ({
 
 vi.mock("@/lib/preference-cookie", () => ({
   setRiskProfileCookie: vi.fn(),
+  getRiskProfileCookie: vi.fn(),
 }));
+
+import { getRiskProfileCookie } from "@/lib/preference-cookie";
 
 const mockedReadApiAuthToken = vi.mocked(readApiAuthToken);
 const mockedGetUserPreferences = vi.mocked(getUserPreferences);
 const mockedSetRiskProfileCookie = vi.mocked(setRiskProfileCookie);
+const mockedGetRiskProfileCookie = vi.mocked(getRiskProfileCookie);
 
 describe("MissingCookiePreferenceSync", () => {
-  beforeEach(() => {
+    beforeEach(() => {
     mockHas.mockReturnValue(false);
     mockToString.mockReturnValue("");
     mockedReadApiAuthToken.mockReturnValue("test-token");
+    mockedGetRiskProfileCookie.mockReturnValue(null);
     mockedGetUserPreferences.mockResolvedValue({
       preferences: { risk_profile: "aggressive" },
     } as unknown as Awaited<ReturnType<typeof getUserPreferences>>);
@@ -56,13 +61,14 @@ describe("MissingCookiePreferenceSync", () => {
     vi.clearAllMocks();
   });
 
-  it("does nothing if hasCookie is true", () => {
-    render(<MissingCookiePreferenceSync hasCookie={true} />);
+    it("does nothing if cookie exists", () => {
+    mockedGetRiskProfileCookie.mockReturnValue("balanced");
+    render(<MissingCookiePreferenceSync />);
     expect(mockedReadApiAuthToken).not.toHaveBeenCalled();
   });
 
-  it("fetches preference and sets cookie if hasCookie is false and user is logged in", async () => {
-    render(<MissingCookiePreferenceSync hasCookie={false} />);
+    it("fetches preference and sets cookie if no cookie and user is logged in", async () => {
+    render(<MissingCookiePreferenceSync />);
     
     await waitFor(() => {
       expect(mockedGetUserPreferences).toHaveBeenCalledWith("test-token");
@@ -72,11 +78,11 @@ describe("MissingCookiePreferenceSync", () => {
     expect(mockReplace).toHaveBeenCalledWith("/recommendations?risk_profile=aggressive", { scroll: false });
   });
 
-  it("calls refresh if preference is balanced", async () => {
+    it("calls refresh if preference is balanced", async () => {
     mockedGetUserPreferences.mockResolvedValue({
       preferences: { risk_profile: "balanced" },
     } as unknown as Awaited<ReturnType<typeof getUserPreferences>>);
-    render(<MissingCookiePreferenceSync hasCookie={false} />);
+    render(<MissingCookiePreferenceSync />);
     
     await waitFor(() => {
       expect(mockRefresh).toHaveBeenCalled();

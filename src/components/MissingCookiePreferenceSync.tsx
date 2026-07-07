@@ -6,14 +6,15 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getUserPreferences } from "@/lib/api";
 import { readApiAuthToken } from "@/lib/cognito-auth";
 import { readRiskProfile } from "@/lib/risk-profile";
-import { setRiskProfileCookie } from "@/lib/preference-cookie";
+import { setRiskProfileCookie, getRiskProfileCookie } from "@/lib/preference-cookie";
 
-export function MissingCookiePreferenceSync({ hasCookie }: { hasCookie: boolean }) {
+export function MissingCookiePreferenceSync() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    const hasCookie = getRiskProfileCookie() !== null;
     if (hasCookie) return;
     if (searchParams.has("risk_profile")) return;
 
@@ -47,7 +48,7 @@ export function MissingCookiePreferenceSync({ hasCookie }: { hasCookie: boolean 
     return () => {
       cancelled = true;
     };
-  }, [hasCookie, pathname, router, searchParams]);
+  }, [pathname, router, searchParams]);
 
   return null;
 }

@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { ErrorState } from "@/components/ErrorState";
 import { EvidenceBadge } from "@/components/EvidenceBadge";
 import { ChatExplanationPanel } from "@/components/ChatExplanationPanel";
@@ -6,9 +10,7 @@ import { ScoreBadge } from "@/components/ScoreBadge";
 import { WatchlistToggle } from "@/components/WatchlistToggle";
 import { componentLabel, evidenceTypeLabel, formatDate, formatScore } from "@/lib/format";
 import { getRecommendationCandidate, getStock, getStockEvidence } from "@/lib/api";
-import type { ScoreComponent } from "@/types/api";
-
-export const dynamic = "force-dynamic";
+import type { RecommendationCandidate, StockDetail, StockEvidenceResponse, ScoreComponent } from "@/types/api";
 
 const SCORE_COMPONENT_KEYS = [
   "financial_stability",
@@ -21,17 +23,71 @@ const SCORE_COMPONENT_KEYS = [
   "momentum_volatility",
 ] as const;
 
-type StockPageProps = {
-  params: Promise<{ ticker: string }>;
-};
+// Static Export를 위한 더미 generateStaticParams
+// 실제로는 클라이언트 사이드에서 동적으로 로드함
+export async function generateStaticParams() {
+  // 빈 배열을 반환하면 빌드 시 정적 페이지를 생성하지 않고
+  // 클라이언트 사이드에서만 동작함
+  return [];
+}
 
-export default async function StockPage({ params }: StockPageProps) {
-  const { ticker } = await params;
-  let data: Awaited<ReturnType<typeof loadStockData>>;
+export default function StockPage() {
+  const params = useParams<{ ticker: string }>();
+  const ticker = params.ticker;
+  const [data, setData] = useState<{
+    candidate: RecommendationCandidate;
+    stock: StockDetail;
+    evidence: StockEvidenceResponse;
+  } | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  try {
-    data = await loadStockData(ticker);
-  } catch {
+  useEffect(() => {
+    if (!ticker) return;
+
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(false);
+
+      try {
+        const [candidate, stock, evidence] = await Promise.all([
+          getRecommendationCandidate(ticker),
+          getStock(ticker),
+          getStockEvidence(ticker),
+        ]);
+
+        if (!cancelled) {
+          setData({ candidate, stock, evidence });
+        }
+      } catch {
+        if (!cancelled) {
+          setError(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ticker]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-5 py-8">
+        <div className="text-center text-sm text-muted">로딩 중...</div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
     return (
       <div className="mx-auto max-w-7xl px-5 py-8">
         <ErrorState href="/recommendations" />
@@ -233,15 +289,6 @@ export default async function StockPage({ params }: StockPageProps) {
       </section>
     </div>
   );
-}
-
-async function loadStockData(ticker: string) {
-  const [candidate, stock, evidence] = await Promise.all([
-    getRecommendationCandidate(ticker),
-    getStock(ticker),
-    getStockEvidence(ticker),
-  ]);
-  return { candidate, stock, evidence };
 }
 
 function normalizeScoreComponents(components: ScoreComponent[]): ScoreComponent[] {

@@ -1,32 +1,63 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ErrorState } from "@/components/ErrorState";
 import { StockSearchResults } from "@/components/StockSearchResults";
 import { searchStocks } from "@/lib/api";
+import type { StockSearchResponse } from "@/types/api";
 
-export const dynamic = "force-dynamic";
-
-type SearchPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const params = await searchParams;
-  const query = readQuery(params.q);
-  let results: Awaited<ReturnType<typeof searchStocks>> = {
-    query,
+export default function SearchPage() {
+  const searchParams = useSearchParams();
+  const query = readQuery(searchParams.get("q"));
+  const [results, setResults] = useState<StockSearchResponse>({
+    query: "",
     count: 0,
     items: [],
-  };
+  });
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  if (query) {
-    try {
-      results = await searchStocks(query, 20);
-    } catch {
-      return (
-        <div className="mx-auto max-w-5xl px-5 py-8">
-          <ErrorState href="/" />
-        </div>
-      );
+  useEffect(() => {
+    if (!query) {
+      return;
     }
+
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(false);
+
+      try {
+        const data = await searchStocks(query, 20);
+        if (!cancelled) {
+          setResults(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setError(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [query]);
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl px-5 py-8">
+        <ErrorState href="/" />
+      </div>
+    );
   }
 
   return (
@@ -61,7 +92,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
       <section>
         <div className="mb-3 text-sm text-muted">
-          {query ? `"${query}" 검색 결과 ${results.count}개` : "검색어를 입력해 주세요"}
+          {loading ? (
+            "검색 중..."
+          ) : query ? (
+            `"${query}" 검색 결과 ${results.count}개`
+          ) : (
+            "검색어를 입력해 주세요"
+          )}
         </div>
         <StockSearchResults query={query} items={results.items} />
       </section>
@@ -69,7 +106,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   );
 }
 
-function readQuery(value: string | string[] | undefined) {
-  const rawValue = Array.isArray(value) ? value[0] : value;
-  return (rawValue ?? "").trim();
+function readQuery(value: string | null) {
+  return (value ?? "").trim();
 }

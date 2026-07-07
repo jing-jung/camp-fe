@@ -1,27 +1,19 @@
-import { Suspense } from "react";
+"use client";
 
-import { cookies } from "next/headers";
+import { Suspense } from "react";
 
 import { MissingCookiePreferenceSync } from "@/components/MissingCookiePreferenceSync";
 import { RecommendationsList } from "@/components/RecommendationsList";
 
-export const dynamic = "force-dynamic";
-
-type ExplorePageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-export default async function ExplorePage({ searchParams }: ExplorePageProps) {
-  const params = await searchParams;
-  const cookieStore = await cookies();
-  const hasCookie = cookieStore.has("stockbrief_risk_profile");
-
+export default function ExplorePage() {
   return (
     <>
       <Suspense fallback={null}>
-        <MissingCookiePreferenceSync hasCookie={hasCookie} />
+        <MissingCookiePreferenceSync />
       </Suspense>
-      <RecommendationsList searchParams={params} />
+      <Suspense fallback={<div className="mx-auto max-w-7xl px-5 py-8 text-center text-sm text-muted">로딩 중...</div>}>
+        <RecommendationsList />
+      </Suspense>
     </>
   );
 }

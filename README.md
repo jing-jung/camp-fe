@@ -69,21 +69,36 @@ pnpm run dev
 | `/onboarding` | 온보딩 |
 | `/account` | 계정 (P1, Cognito 인증 필요) |
 
+## 호스팅 배포 (ECS + CloudFront)
+
+Amplify 대신 백엔드 Terraform이 만든 ECS Fargate + CloudFront 경로를 사용한다.
+
+1. `camp-be`에서 `enable_frontend_ecs = true`, `enable_frontend_cloudfront = true`로
+   Terraform apply
+2. `camp-fe` GitHub Actions `frontend-dev-deploy` workflow 실행
+3. 배포 후 smoke:
+
+```bash
+STOCKBRIEF_HOSTED_URL="$(terraform -chdir=../camp-be/infra/terraform output -raw frontend_hosted_url)" \
+pnpm run smoke:hosted-evidence -- --ticker 005930
+```
+
+로컬에서 직접 배포할 때:
+
+```bash
+pnpm run deploy:hosted
+```
+
+Docker 이미지는 `NEXT_PUBLIC_*` 값을 빌드 시점에 주입한다. 배포 전
+`pnpm run sync:dev-env`로 로컬 개발 env를 맞추고, hosted 배포는 Terraform
+output을 기준으로 `scripts/deploy-hosted-frontend.sh`가 처리한다.
+
 ## 검증 명령어
 
 ```bash
 pnpm run lint       # ESLint
 pnpm run typecheck  # TypeScript 타입 체크
 pnpm run build      # 프로덕션 빌드
-```
-
-Hosted Amplify 화면에서 추천 후보와 상세 근거가 실제로 보이는지 확인할 때는
-다음 smoke를 사용한다. 결과에는 HTTP 상태와 화면 요소 확인값만 남기며, raw
-HTML이나 provider 원문은 출력하지 않는다.
-
-```bash
-STOCKBRIEF_HOSTED_URL="https://main.d20hgo2k8atldu.amplifyapp.com" \
-pnpm run smoke:hosted-evidence -- --ticker 005930
 ```
 
 ## 브랜치 정책
