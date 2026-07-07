@@ -1,8 +1,8 @@
 # StockBrief-fe
 
-StockBrief 프론트엔드 레포지토리. Next.js App Router 기반의 한국 국내 주식 추천 후보 서비스 UI.
+Next.js App Router 기반의 한국 국내 주식 추천 후보 서비스 프론트엔드.
 
-StockBrief는 투자 조언을 제공하지 않는다. 모든 추천은 `검토 후보 추천`이며, 매수·매도 지시, 목표가, 수익 보장이 아니다.
+개인 프로젝트로, 근거 기반 종목 검토 후보를 제공합니다. 투자 조언, 매수·매도 지시, 목표가 제시가 아닌 `검토 후보 추천` 서비스입니다.
 
 ## 레포 범위
 
@@ -31,21 +31,10 @@ cp .env.example .env.local
 # NEXT_PUBLIC_API_BASE_URL 등 설정
 ```
 
-BE Terraform dev stack이 준비된 뒤에는 현재 AWS 계정의 출력값으로 로컬
-환경변수를 다시 생성할 수 있다. 이 명령은 public FE 환경변수만 쓰며
-API key, token, secret 값은 다루지 않는다.
+백엔드 개발 환경이 준비되면 AWS 계정의 Terraform 출력값으로 로컬 환경변수를 생성할 수 있습니다.
 
 ```bash
 pnpm run sync:dev-env -- --terraform-dir ../StockBrief-be/infra/terraform
-```
-
-기본 callback은 `http://localhost:3001/auth/callback`이다. 다른 포트로
-로컬 서버를 띄울 때는 Cognito callback allowlist에 포함된 값으로 명시한다.
-
-```bash
-pnpm run sync:dev-env -- \
-  --terraform-dir ../StockBrief-be/infra/terraform \
-  --redirect-uri http://localhost:3000/auth/callback
 ```
 
 ## 개발 서버 실행
@@ -69,29 +58,15 @@ pnpm run dev
 | `/onboarding` | 온보딩 |
 | `/account` | 계정 (P1, Cognito 인증 필요) |
 
-## 호스팅 배포 (ECS + CloudFront)
+## 배포
 
-Amplify 대신 백엔드 Terraform이 만든 ECS Fargate + CloudFront 경로를 사용한다.
-
-1. `camp-be`에서 `enable_frontend_ecs = true`, `enable_frontend_cloudfront = true`로
-   Terraform apply
-2. `camp-fe` GitHub Actions `frontend-dev-deploy` workflow 실행
-3. 배포 후 smoke:
-
-```bash
-STOCKBRIEF_HOSTED_URL="$(terraform -chdir=../camp-be/infra/terraform output -raw frontend_hosted_url)" \
-pnpm run smoke:hosted-evidence -- --ticker 005930
-```
-
-로컬에서 직접 배포할 때:
+AWS Amplify 또는 ECS Fargate + CloudFront로 배포할 수 있습니다.
 
 ```bash
 pnpm run deploy:hosted
 ```
 
-Docker 이미지는 `NEXT_PUBLIC_*` 값을 빌드 시점에 주입한다. 배포 전
-`pnpm run sync:dev-env`로 로컬 개발 env를 맞추고, hosted 배포는 Terraform
-output을 기준으로 `scripts/deploy-hosted-frontend.sh`가 처리한다.
+Docker 이미지 빌드 시 `NEXT_PUBLIC_*` 환경변수를 주입합니다.
 
 ## 검증 명령어
 
@@ -103,22 +78,30 @@ pnpm run build      # 프로덕션 빌드
 
 ## 브랜치 정책
 
-- `main`: 보호 브랜치, 직접 push 금지
+개인 프로젝트이지만 체계적인 브랜치 관리를 위해 다음 규칙을 따릅니다:
+
+- `main`: 안정 브랜치
 - `feat/<issue>-<slug>`: 새 기능
 - `fix/<issue>-<slug>`: 버그 수정
 - `docs/<slug>`: 문서 변경
-- `release/<version>`: 릴리즈 직전 안정화
 
 커밋 타입: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`
 
 ## API 계약
 
-API 계약은 BE 레포에서 먼저 고정한다. `docs/engineering/API_CONTRACT.md`를 참조하고, 타입은 `src/types/api.ts`에서 관리한다.
+API 계약은 `docs/engineering/API_CONTRACT.md`를 참조하며, 타입은 `src/types/api.ts`에서 관리합니다.
 
 - Backend canonical API base: `/v1`
 - Recommendation candidates: `GET /v1/recommendations/candidates`
 
-## 관련 레포
+## 기술 스택
 
-- [StockBrief-be](https://github.com/your-org/StockBrief-be) — FastAPI 백엔드, DB, 인프라
-- [StockBrief-wiki](https://github.com/your-org/StockBrief-wiki) — 결정 로그, 회의록, 스프린트 기록
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **State**: localStorage (MVP), AWS Cognito (P1)
+- **Deployment**: AWS Amplify / ECS Fargate + CloudFront
+- **Testing**: Vitest
+- **Tooling**: ESLint, TypeScript, pnpm
+
+## 라이선스
+
+개인 프로젝트 — 상업적 사용 시 별도 문의
