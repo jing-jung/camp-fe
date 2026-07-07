@@ -23,14 +23,6 @@ const SCORE_COMPONENT_KEYS = [
   "momentum_volatility",
 ] as const;
 
-// Static Export를 위한 더미 generateStaticParams
-// 실제로는 클라이언트 사이드에서 동적으로 로드함
-export async function generateStaticParams() {
-  // 빈 배열을 반환하면 빌드 시 정적 페이지를 생성하지 않고
-  // 클라이언트 사이드에서만 동작함
-  return [];
-}
-
 export default function StockPage() {
   const params = useParams<{ ticker: string }>();
   const ticker = params.ticker;
