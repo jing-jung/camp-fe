@@ -28,6 +28,16 @@ const DEFAULT_API_BASE_URL = "http://localhost:8000/v1";
 const DEFAULT_CHAT_SAFETY_DISCLAIMER =
   "공개 데이터 기반 설명이며 투자 조언이 아닙니다. 원문 확인이 필요합니다.";
 
+// Cache durations in seconds
+const CACHE_DURATION = {
+  RECOMMENDATION_LIST: 300, // 5분 - 추천 목록은 자주 변경되지만 실시간일 필요 없음
+  RECOMMENDATION_DETAIL: 600, // 10분 - 종목 상세는 상대적으로 안정적
+  STOCK_DETAIL: 3600, // 1시간 - 기본 종목 정보는 거의 변경 안 됨
+  STOCK_EVIDENCE: 3600, // 1시간 - 근거는 안정적
+  SEARCH: 1800, // 30분 - 검색 결과는 중간 정도
+  NO_CACHE: 0, // 캐시 없음 - 실시간 필요하거나 인증 필요한 엔드포인트
+} as const;
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -42,14 +52,20 @@ function apiBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(/\/$/, "");
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  revalidate?: number,
+): Promise<T> {
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
       ...init?.headers,
     },
-    cache: "no-store",
+    ...(revalidate !== undefined && revalidate > 0
+      ? { next: { revalidate } }
+      : { cache: "no-store" }),
   });
 
   if (!response.ok) {
@@ -93,20 +109,32 @@ export async function getRecommendationCandidates(
   if (query.sector) params.set("sector", query.sector);
   if (query.limit) params.set("limit", String(query.limit));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  return request<RecommendationCandidateList>(`/recommendations/candidates${suffix}`);
+  return request<RecommendationCandidateList>(
+    `/recommendations/candidates${suffix}`,
+    undefined,
+    CACHE_DURATION.RECOMMENDATION_LIST,
+  );
 }
 
 export async function getRecommendationCandidate(
   ticker: string,
 ): Promise<RecommendationCandidate> {
-  return request<RecommendationCandidate>(`/stocks/candidates/${encodeURIComponent(ticker)}`);
+  return request<RecommendationCandidate>(
+    `/stocks/candidates/${encodeURIComponent(ticker)}`,
+    undefined,
+    CACHE_DURATION.RECOMMENDATION_DETAIL,
+  );
 }
 
 export async function searchStocks(query = "", limit = 20): Promise<StockSearchResponse> {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
   params.set("limit", String(limit));
-  const response = await request<StockSearchContractResponse>(`/stocks/search?${params.toString()}`);
+  const response = await request<StockSearchContractResponse>(
+    `/stocks/search?${params.toString()}`,
+    undefined,
+    CACHE_DURATION.SEARCH,
+  );
   return {
     query,
     count: response.data.pagination.total,
@@ -121,7 +149,11 @@ export async function searchStocks(query = "", limit = 20): Promise<StockSearchR
 }
 
 export async function getStock(ticker: string): Promise<StockDetail> {
-  const response = await request<StockDetailContractResponse>(`/stocks/${encodeURIComponent(ticker)}`);
+  const response = await request<StockDetailContractResponse>(
+    `/stocks/${encodeURIComponent(ticker)}`,
+    undefined,
+    CACHE_DURATION.STOCK_DETAIL,
+  );
   return {
     ticker: response.data.stock.ticker,
     name: response.data.stock.name,
@@ -151,7 +183,11 @@ export async function getStockEvidence(
   const params = new URLSearchParams();
   if (type) params.set("source_type", toContractEvidenceFilter(type));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const response = await request<StockEvidenceContractResponse>(`/stocks/${encodeURIComponent(ticker)}/evidence${suffix}`);
+  const response = await request<StockEvidenceContractResponse>(
+    `/stocks/${encodeURIComponent(ticker)}/evidence${suffix}`,
+    undefined,
+    CACHE_DURATION.STOCK_EVIDENCE,
+  );
   return {
     ticker: response.data.ticker,
     evidence: response.data.items.map((item) => ({
