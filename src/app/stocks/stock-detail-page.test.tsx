@@ -7,10 +7,6 @@ import StockPage from "./[ticker]/page";
 
 let mockTicker = "005930";
 
-vi.mock("next/navigation", () => ({
-  useParams: () => ({ ticker: mockTicker }),
-}));
-
 vi.mock("@/lib/api", () => ({
   getRecommendationCandidate: vi.fn(),
   getStock: vi.fn(),
@@ -107,7 +103,7 @@ describe("StockPage", () => {
       message: null,
     });
 
-        render(<StockPage />);
+    render(await StockPage({ params: Promise.resolve({ ticker: mockTicker }) }));
 
     await waitFor(() => {
       expect(screen.getAllByText("누락 데이터")).toHaveLength(2);
