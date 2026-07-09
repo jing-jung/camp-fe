@@ -211,11 +211,46 @@ pnpm run dev
 - **Dev/Staging**: ECS Fargate + CloudFront
 - **Production**: AWS Amplify (선택 가능)
 
-```bash
-pnpm run deploy:hosted
+### Docker 이미지 빌드 및 ECR 푸시
+
+프론트엔드를 ECS Fargate에 배포하기 전에 Docker 이미지를 ECR에 푸시해야 합니다.
+
+```powershell
+# PowerShell에서 실행
+.\scripts\push-to-ecr.ps1
 ```
 
-Docker 이미지 빌드 시 `NEXT_PUBLIC_*` 환경변수를 주입합니다.
+또는 환경 변수를 설정하여 실행:
+
+```powershell
+# API Base URL 설정 (필수)
+$env:API_BASE_URL = "https://your-api-gateway-url.amazonaws.com/v1"
+
+# Cognito 설정 (선택 - MVP는 로컬 스토리지 사용)
+$env:COGNITO_USER_POOL_ID = "ap-northeast-2_XXXXXXXXX"
+$env:COGNITO_APP_CLIENT_ID = "your-app-client-id"
+
+# ECR에 푸시
+.\scripts\push-to-ecr.ps1
+```
+
+자세한 가이드는 [ECR 푸시 가이드](docs/engineering/ECR_PUSH_GUIDE.md)를 참조하세요.
+
+### ECS 배포
+
+ECR에 이미지를 푸시한 후 ECS 서비스를 업데이트합니다:
+
+```bash
+# 방법 1: 호스팅된 프론트엔드 전체 배포
+pnpm run deploy:hosted
+
+# 방법 2: ECS 서비스 강제 업데이트
+aws ecs update-service \
+  --region ap-northeast-2 \
+  --cluster stockbrief-dev-frontend-cluster \
+  --service stockbrief-dev-frontend-service \
+  --force-new-deployment
+```
 
 ### 배포 아키텍처
 
@@ -342,9 +377,28 @@ export default async function RecommendationsPage({ searchParams }) {
   - [Phase 1: API 캐싱 구현](docs/engineering/FRONTEND_CACHING_IMPLEMENTATION.md)
   - [Phase 2: ISR 구현](docs/engineering/PHASE2_ISR_IMPLEMENTATION.md)
 
+- **배포 문서**
+  - [Lambda 배포 가이드](docs/engineering/LAMBDA_DEPLOYMENT.md)
+  - [ECR 푸시 가이드](docs/engineering/ECR_PUSH_GUIDE.md)
+
 - **제품 문서**
   - [MVP PRD](docs/product/MVP_PRD.md)
   - [API 계약](docs/engineering/API_CONTRACT.md)
+
+## 🎓 학습 및 개발 과정
+
+이 프로젝트는 실제 프로덕션 환경 구축 과정에서의 학습과 시행착오를 담고 있습니다.
+
+### 배포 여정 하이라이트
+
+- **Lambda vs ECS 아키텍처 선택**: ECS 대비 70% 비용 절감을 위해 Lambda Web Adapter 채택
+- **Terraform State 충돌 회피**: 60개 리소스 삭제 위험 발견 및 안전한 수동 배포로 전환
+- **환경 변수 빌드 타임 주입**: Next.js 특성 이해 및 자동화 스크립트 개발
+- **멀티 계정 ECR 관리**: AWS CLI로 실제 상태 검증하는 습관 확립
+
+자세한 내용은 [배포 여정 및 트러블슈팅 문서](docs/engineering/DEPLOYMENT_JOURNEY.md)를 참조하세요.
+
+**면접 대비**: 이 문서에는 STAR 형식의 문제 해결 과정과 예상 질문-답변이 포함되어 있습니다.
 
 ## 🤝 기여 및 문의
 
